@@ -75,7 +75,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     struct container_list_node *target_container;
     struct task_list_node *target_task;
     mutex_lock(container_lock);
-    printk("Delete Triggered. id:%d\n", current->pid);
+    //printk("Delete Triggered. id:%d\n", current->pid);
     target_container = list_entry(working_container, struct container_list_node, list);
     target_task = list_entry(target_container->running_task, struct task_list_node, list);
     target_container->running_task = target_container->running_task->next;
@@ -93,11 +93,11 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     if (working_container != container_list_head) {
         target_container = list_entry(working_container, struct container_list_node, list);
         target_task = list_entry(target_container->running_task, struct task_list_node, list);
-        printk("Trying to wake:%d\n",target_task->task_id->pid);
+        //printk("Trying to wake:%d\n",target_task->task_id->pid);
         wake_up_process(target_task->task_id);
     }
     else printk("No waking.\n");
-    printk("Delete done.");
+    //printk("Delete done.");
     mutex_unlock(container_lock);
     return 0;
 }
@@ -117,7 +117,7 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
     struct container_list_node *entry;
     struct task_list_node* new_task;
     mutex_lock(container_lock);
-    printk("Create triggered.\n");
+    //printk("Create triggered.\n");
     for (ptr = container_list_head->next; ptr != container_list_head; ptr = ptr->next) {
         entry = list_entry(ptr, struct container_list_node, list);
         if (entry->cid == user_cmd->cid) {
@@ -128,7 +128,7 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
             //copy_from_user(new_task->task_id, current, sizeof(struct task_struct));
             list_add_tail(&new_task->list, entry->task_head);
             //sleep current process
-            printk("task created. id:%d\n", new_task->task_id->pid);
+            //printk("task created. id:%d\n", new_task->task_id->pid);
             set_current_state(TASK_INTERRUPTIBLE);
             mutex_unlock(container_lock);
             schedule();
@@ -155,7 +155,7 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
     else {
         working_container = &entry->list;
     }
-    printk("Container & task created. id:%d\n", new_task->task_id->pid);
+    //printk("Container & task created. id:%d\n", new_task->task_id->pid);
     mutex_unlock(container_lock);
     return 0;
 }
@@ -173,7 +173,7 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     struct container_list_node *entry, *next_entry;
     struct task_list_node *next_task;
     mutex_lock(container_lock);
-    printk("Switch triggered.\n");
+    //printk("Switch triggered.\n");
     entry = list_entry(working_container, struct container_list_node, list);
     //find next running task and skip the meaningless head pointer
     now_task = entry->running_task;
@@ -189,10 +189,10 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
         mutex_unlock(container_lock);
         wake_up_process(next_task->task_id);
         set_current_state(TASK_INTERRUPTIBLE);
-        printk("Switch success. Now:%d\n", next_task->task_id->pid);
+        //printk("Switch success. Now:%d\n", next_task->task_id->pid);
         schedule();
     }   
-    printk("Switch done.\n");
+    //printk("Switch done.\n");
     mutex_unlock(container_lock);
     return 0;
 }
