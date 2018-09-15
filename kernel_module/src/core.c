@@ -48,7 +48,12 @@
 
 extern struct miscdevice processor_container_dev;
 
-//my define of two structures
+/**
+ * My define of two structures: two link list nodes, one for container, one for tasks within container
+ * I use round robin for both container and in-container task arrangement.
+ * the data structure is a 2-d linklist, outer one for containers, inner one for tasks.
+ * and two global variables: one for the entry of the outer linklist, one for the head of the working container  
+ */
 struct task_list_node {
     struct list_head list;
     struct task_struct* task_id;
@@ -60,13 +65,15 @@ struct container_list_node {
     struct list_head* task_head;//should be the head of a linklist of task_list_node
     struct list_head* running_task;//should be the executing front
 };
-//global define here
+//global variables define here
 struct list_head *container_list_head;
 struct list_head *working_container;
 struct mutex *container_lock;
+
 /**
  * Initialize and register the kernel module
  */
+
 int processor_container_init(void)
 {
     int ret;
@@ -90,5 +97,7 @@ int processor_container_init(void)
  */ 
 void processor_container_exit(void)
 {
+    kfree(container_list_head);
+    kfree(container_lock);
     misc_deregister(&processor_container_dev);
 }

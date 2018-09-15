@@ -57,7 +57,7 @@ struct container_list_node {
     struct list_head list;
     int cid;
     struct list_head* task_head;//should be the head of a linklist of task_list_node
-    struct list_head* running_task;//should be the executing front
+    struct list_head* running_task;//should be the executing front(within a container)
 };
 
 extern struct list_head *container_list_head;
@@ -79,15 +79,16 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     target_container = list_entry(working_container, struct container_list_node, list);
     target_task = list_entry(target_container->running_task, struct task_list_node, list);
     target_container->running_task = target_container->running_task->next;
-    list_del(target_container->running_task->prev);//kfree(&target_task);
+    list_del(target_container->running_task->prev);kfree(target_task);
+    //skip meaningless head pointer
     if (target_container->running_task == target_container->task_head)
         target_container->running_task = target_container->running_task->next;
     //no task left, destroy the container
     if (target_container->running_task == target_container->task_head) {
         working_container = working_container->next;
-        list_del(working_container->prev);//kfree(&target_container);
+        list_del(working_container->prev);kfree(target_container);
     }
-    //activate the next task
+    //activate the next task - if there is one
     if (working_container == container_list_head)
         working_container = working_container->next;
     if (working_container != container_list_head) {
@@ -96,7 +97,8 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
         //printk("Trying to wake:%d\n",target_task->task_id->pid);
         wake_up_process(target_task->task_id);
     }
-    else printk("No waking.\n");
+    //else printk("No waking.\n");
+
     //printk("Delete done.");
     mutex_unlock(container_lock);
     return 0;
@@ -123,9 +125,9 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
         if (entry->cid == user_cmd->cid) {
             //insert into found container
             new_task = (struct task_list_node *) kcalloc(1, sizeof(struct task_list_node), GFP_KERNEL);
-            //new_task->task_id = (struct task_struct *) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
+            //I tried to use copy_from_user() here, later find it's a waste - simple '=' will do
             new_task->task_id = current;
-            //copy_from_user(new_task->task_id, current, sizeof(struct task_struct));
+            //copy_from_user(&new_task->task_id, &current, sizeof(struct *task_struct)); - previous code
             list_add_tail(&new_task->list, entry->task_head);
             //sleep current process
             //printk("task created. id:%d\n", new_task->task_id->pid);
@@ -135,15 +137,14 @@ int processor_container_create(struct processor_container_cmd __user *user_cmd)
             return 0;
         }
     }
-    //create a new container and a new task
+    //no existing cid found, so create a new container and a new task
     entry = (struct container_list_node *) kcalloc(1, sizeof(struct container_list_node), GFP_KERNEL);
     entry->cid = user_cmd->cid;
     entry->task_head = (struct list_head *) kcalloc(1, sizeof(struct list_head), GFP_KERNEL);
     INIT_LIST_HEAD(entry->task_head);
     new_task = (struct task_list_node *) kcalloc(1, sizeof(struct task_list_node), GFP_KERNEL);
-    //new_task->task_id = (struct task_struct *) kcalloc(1, sizeof(struct task_struct), GFP_KERNEL);
     new_task->task_id = current;
-    //copy_from_user(new_task->task_id, current, sizeof(struct task_struct));
+    //copy_from_user(&new_task->task_id, &current, sizeof(struct *task_struct));
     list_add_tail(&new_task->list, entry->task_head);
     entry->running_task = &new_task->list;
     list_add_tail(&entry->list, container_list_head);
@@ -186,11 +187,12 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     next_entry = list_entry(working_container, struct container_list_node, list);
     if (next_entry->running_task != now_task) {
         next_task = list_entry(next_entry->running_task, struct task_list_node, list);
+        //printk("Switch success. Now:%d\n", next_task->task_id->pid);
         mutex_unlock(container_lock);
         wake_up_process(next_task->task_id);
         set_current_state(TASK_INTERRUPTIBLE);
-        //printk("Switch success. Now:%d\n", next_task->task_id->pid);
         schedule();
+        return 0;
     }   
     //printk("Switch done.\n");
     mutex_unlock(container_lock);
