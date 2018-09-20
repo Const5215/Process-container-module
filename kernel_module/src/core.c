@@ -68,7 +68,7 @@ struct container_list_node {
 //global variables define here
 struct list_head *container_list_head;
 struct list_head *working_container;
-struct mutex *container_lock;
+struct mutex *container_lock, *switch_lock;
 
 /**
  * Initialize and register the kernel module
@@ -86,7 +86,8 @@ int processor_container_init(void)
     container_list_head = (struct list_head*) kcalloc(1, sizeof(struct list_head), GFP_KERNEL);
     working_container = container_list_head;
     container_lock = (struct mutex*) kcalloc(1, sizeof(struct mutex), GFP_KERNEL);
-    mutex_init(container_lock);
+    switch_lock = (struct mutex*) kcalloc(1, sizeof(struct mutex), GFP_KERNEL);
+    mutex_init(container_lock);mutex_init(switch_lock);
     INIT_LIST_HEAD(container_list_head);
     return ret;
 }

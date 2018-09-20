@@ -62,7 +62,7 @@ struct container_list_node {
 
 extern struct list_head *container_list_head;
 extern struct list_head *working_container;
-extern struct mutex *container_lock;
+extern struct mutex *container_lock, *switch_lock;
 int now = 0;
 /**
  * Delete the task in the container.
@@ -95,7 +95,7 @@ int processor_container_delete(struct processor_container_cmd __user *user_cmd)
     if (working_container != container_list_head) {
         target_container = list_entry(working_container, struct container_list_node, list);
         target_task = list_entry(target_container->running_task, struct task_list_node, list);
-        //printk("Trying to wake:%d\n",target_task->task_id->pid);
+        printk("Trying to wake:%d now:%d\n",target_task->task_id->pid, --now);
         wake_up_process(target_task->task_id);
     }
     //else printk("No waking.\n");
@@ -180,10 +180,20 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     struct task_struct* now_task_entry;
     set_current_state(TASK_INTERRUPTIBLE);
     printk("Switch triggered.trigger id:%d\n", current->pid);
+    if (mutex_is_locked(switch_lock)) {
+        printk("Switch in progress.\n");
+        set_current_state(TASK_RUNNING);
+        return 0;
+    }
+    else {
+        mutex_lock(switch_lock);
+    }
     mutex_lock(container_lock);
     if (working_container == container_list_head) {
         printk("Nothing to switch.\n");
+        set_current_state(TASK_RUNNING);
         mutex_unlock(container_lock);
+        mutex_unlock(switch_lock);
         return 0;
     }
     entry = list_entry(working_container, struct container_list_node, list);
@@ -191,7 +201,9 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
     now_task = list_entry(now_task_ptr, struct task_list_node, list);
     if (now_task->task_id->pid != current->pid) {
         printk("Unable to Switch. Now id:%d, trigger id:%d\n", now_task->task_id->pid, current->pid);
+        set_current_state(TASK_RUNNING);
         mutex_unlock(container_lock);
+        mutex_unlock(switch_lock);
         return 0;
     }
     //find next running task and skip the meaningless head pointer
@@ -207,14 +219,16 @@ int processor_container_switch(struct processor_container_cmd __user *user_cmd)
         now_task_entry = next_task->task_id;
         //printk("Switch success. Now:%d\n", now_task_entry->pid);
         printk("Switch done. Past:%d, Now:%d\n",current->pid, now_task_entry->pid);
-        mutex_unlock(container_lock);
         wake_up_process(now_task_entry);
+        mutex_unlock(container_lock);
+        mutex_unlock(switch_lock);
         schedule();
         return 0;
     }   
     set_current_state(TASK_RUNNING);
     printk("Switch done.\n");
     mutex_unlock(container_lock);
+    mutex_unlock(switch_lock);
     return 0;
 }
 
