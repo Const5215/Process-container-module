@@ -14,7 +14,8 @@
 
 int devfd;
 pthread_mutex_t mutex;
-int total = 0;
+int cnt = 0;
+long long total = 0;
 
 /**
  * Thread body that creates task in a specified container, does some simple calculations
@@ -29,7 +30,8 @@ void *thread_body(void *x)
 
     // allocate/associate a container for the thread.
     pcontainer_create(devfd, cid);
-
+    int ths = cnt++;
+    //while(total < 0)
     while (total < 50000000)
     {
         // calculate some dumb numbers here.
@@ -41,11 +43,11 @@ void *thread_body(void *x)
 
         // update the total counter.
         pthread_mutex_lock(&mutex);
-        total += 1000000;
+            total += 1000000;
         pthread_mutex_unlock(&mutex);
     }
     // The sum of each container should be close.
-    fprintf(stderr, "TID: %d Container: %d Processed: %d\n", (int)syscall(SYS_gettid), cid, processed);
+    fprintf(stderr, "TID: %d Container: %d Processed: %d total:%lld\n", (int)syscall(SYS_gettid), cid, processed, total);
 
     // Delete a container.
     pcontainer_delete(devfd, cid);
@@ -120,7 +122,9 @@ int main(int argc, char *argv[])
     {
         for (tasks = 0; tasks < tasks_in_containers[i]; tasks++)
         {
-            pthread_create(&threads[total_tasks], NULL, thread_body, &cid[i]);
+            if (pthread_create(&threads[total_tasks], NULL, thread_body, &cid[i])) {
+                fprintf(stderr, "thread create error.\n");
+            }
             total_tasks++;
         }
     }

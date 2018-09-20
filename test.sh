@@ -1,5 +1,8 @@
 #!/bin/bash
 
+cd benchmark/
+make
+cd ..
 cd kernel_module/
 make
 sudo make install
