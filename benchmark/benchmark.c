@@ -32,7 +32,7 @@ void *thread_body(void *x)
     pcontainer_create(devfd, cid);
     int ths = cnt++;
     //while(total < 0)
-    while (total < 50000000)
+    while (total < 500000000)
     {
         // calculate some dumb numbers here.
         for (i = 0; i < 1000000; i++)
@@ -47,7 +47,7 @@ void *thread_body(void *x)
         pthread_mutex_unlock(&mutex);
     }
     // The sum of each container should be close.
-    fprintf(stderr, "TID: %d Container: %d Processed: %d total:%lld\n", (int)syscall(SYS_gettid), cid, processed, total);
+    fprintf(stderr, "TID: %d Container: %d Processed: %d\n", (int)syscall(SYS_gettid), cid, processed);
 
     // Delete a container.
     pcontainer_delete(devfd, cid);

@@ -84,10 +84,8 @@ int processor_container_init(void)
     
     //my code added here
     container_list_head = (struct list_head*) kcalloc(1, sizeof(struct list_head), GFP_KERNEL);
-    working_container = container_list_head;
     container_lock = (struct mutex*) kcalloc(1, sizeof(struct mutex), GFP_KERNEL);
-    switch_lock = (struct mutex*) kcalloc(1, sizeof(struct mutex), GFP_KERNEL);
-    mutex_init(container_lock);mutex_init(switch_lock);
+    mutex_init(container_lock);
     INIT_LIST_HEAD(container_list_head);
     return ret;
 }
